@@ -247,7 +247,7 @@ Outcomes_test_final['prob_bin'] = pd.qcut(Outcomes_test_final['phat'], q=20, lab
 quantile_counts = Outcomes_test_final.groupby(['prob_bin'])['business_outcome'].sum()
 print(quantile_counts)
 
-def get_result(raw_test,final_model):
+def get_result(raw_test,final_model=final_result):
   variables = final_model.params.index.tolist()
   test_val = raw_test.copy(deep=True)
 
@@ -275,26 +275,66 @@ def get_result(raw_test,final_model):
   # 3. With mean imputation from Train set
 
   imputer = SimpleImputer(missing_values = np.nan, strategy = 'mean')
-  test_imputed = pd.DataFrame(imputer.fit_transform(test_val.drop(columns=[ 'x5', 'x31',  'x81' ,'x82'])), columns=test_val.drop(columns=[ 'x5', 'x31', 'x81', 'x82']).columns)
-  std_scaler = StandardScaler()
-  test_imputed_std = pd.DataFrame(std_scaler.fit_transform(test_imputed), columns=test_imputed.columns)
+
+#   test_imputed = pd.DataFrame(imputer.fit_transform(test_val.drop(columns=[ 'x5', 'x31',  'x81' ,'x82'])), columns=test_val.drop(columns=[ 'x5', 'x31', 'x81', 'x82']).columns)
+#   std_scaler = StandardScaler()
+#   test_imputed_std = pd.DataFrame(std_scaler.fit_transform(test_imputed), columns=test_imputed.columns)
 
   # 3 create dummies
 
-  dumb5 = pd.get_dummies(test_val['x5'], drop_first=True, prefix='x5', prefix_sep='_', dummy_na=True)
-  test_imputed_std = pd.concat([test_imputed_std, dumb5], axis=1, sort=False)
+  months=['January','February','March','April','May','June','July','August','September','October','November','December']
+  country=['germany','america','asia','japan']
+  week= ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
+  gender=['Male,Female']
 
-  dumb31 = pd.get_dummies(test_val['x31'], drop_first=True, prefix='x31', prefix_sep='_', dummy_na=True)
-  test_imputed_std = pd.concat([test_imputed_std, dumb31], axis=1, sort=False)
 
-  dumb81 = pd.get_dummies(test_val['x81'], drop_first=True, prefix='x81', prefix_sep='_', dummy_na=True)
-  test_imputed_std = pd.concat([test_imputed_std, dumb81], axis=1, sort=False)
 
-  dumb82 = pd.get_dummies(test_val['x82'], drop_first=True, prefix='x82', prefix_sep='_', dummy_na=True)
-  test_imputed_std = pd.concat([test_imputed_std, dumb82], axis=1, sort=False)
+  # All possible categories for each variable
+  categories = {
+    'x5': ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
+    'x31': ['asia', 'germany', 'japan', 'america'],
+    'x81': ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+    'x82': ['Male', 'Female']
+    }
+
+# Create dummy variables
+#   for column, cats in categories.items():
+#         dummies = pd.get_dummies(test_imputed_std[column])
+#         # Create missing columns for categories not in test_data
+#         for cat in cats:
+#             dummy_col = f"{column}_{cat}"
+#             if dummy_col not in dummies.columns:
+#                 dummies[dummy_col] = 0
+#         # Drop original column and concatenate
+#         test_imputed_std = test_imputed_std.drop(column, axis=1).join(dummies)
+
+  for column, cats in categories.items():
+    for cat in cats:
+        test_val[f'{column}_{cat}'] = (test_val[column] == cat).astype(int)
+    test_val.drop(column, axis=1, inplace=True)
+  
+#   dumb5 = pd.get_dummies(test_val['x5'], drop_first=True, prefix='x5', prefix_sep='_', dummy_na=True)
+#   test_imputed_std = pd.concat([test_imputed_std, dumb5], axis=1, sort=False)
+
+#   dumb31 = pd.get_dummies(test_val['x31'], drop_first=True, prefix='x31', prefix_sep='_', dummy_na=True)
+#   test_imputed_std = pd.concat([test_imputed_std, dumb31], axis=1, sort=False)
+
+#   dumb81 = pd.get_dummies(test_val['x81'], drop_first=True, prefix='x81', prefix_sep='_', dummy_na=True)
+#   test_imputed_std = pd.concat([test_imputed_std, dumb81], axis=1, sort=False)
+
+#   dumb82 = pd.get_dummies(test_val['x82'], drop_first=True, prefix='x82', prefix_sep='_', dummy_na=True)
+#   test_imputed_std = pd.concat([test_imputed_std, dumb82], axis=1, sort=False)
   # train_imputed_std = pd.concat([train_imputed_std, train['y']], axis=1, sort=False)
 
-  del dumb5, dumb31, dumb81, dumb82
+#   del dumb5, dumb31, dumb81, dumb82
+
+
+  test_imputed = pd.DataFrame(imputer.fit_transform(test_val), columns=test_val.columns)
+  std_scaler = StandardScaler()
+  test_imputed_std = pd.DataFrame(std_scaler.fit_transform(test_imputed), columns=test_imputed.columns)
+
+  print(test_imputed_std.head())
+
 
 
 
@@ -319,7 +359,7 @@ def get_result(raw_test,final_model):
   return Outcomes_test_final[['business_outcome', 'phat']],variables
 # print(raw_test)
 print("#################################################")
-print(get_result(raw_test,final_result))
+print(get_result(raw_test))
 
 # variable_names = final_result.params.index.tolist()
 # print(variable_names)
