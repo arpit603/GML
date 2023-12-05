@@ -314,3 +314,77 @@ def get_result(raw_train,raw_test):
   return Outcomes_train_final[['business_outcome', 'phat']],variables
 
 
+
+
+def get_result(raw_test,final_model,variables):
+
+  test_val = raw_test.copy(deep=True)
+
+  #1. Fixing the money and percents#
+  test_val['x12'] = test_val['x12'].str.replace('$','')
+  test_val['x12'] = test_val['x12'].str.replace(',','')
+  test_val['x12'] = test_val['x12'].str.replace(')','')
+  test_val['x12'] = test_val['x12'].str.replace('(','-')
+  test_val['x12'] = test_val['x12'].astype(float)
+  test_val['x63'] = test_val['x63'].str.replace('%','')
+  test_val['x63'] = test_val['x63'].astype(float)
+
+  #Dropping Nan values from the dataset(If any)
+
+  # test_val.dropna(subset=['y'],inplace=True)
+
+  # x_train, x_val, y_train, y_val = train_test_split(train_val.drop(columns=['y']), train_val['y'], test_size=0.1, random_state=13)
+  # x_train, x_test, y_train, y_test = train_test_split(x_train, y_train, test_size=4000, random_state=13)
+
+  # # 3. smashing sets back together
+  # train = pd.concat([x_train, y_train], axis=1, sort=False).reset_index(drop=True)
+  # val = pd.concat([x_val, y_val], axis=1, sort=False).reset_index(drop=True)
+  # test = pd.concat([x_test, y_test], axis=1, sort=False).reset_index(drop=True)
+
+  # 3. With mean imputation from Train set
+
+  imputer = SimpleImputer(missing_values = np.nan, strategy = 'mean')
+  test_imputed = pd.DataFrame(imputer.fit_transform(test_val.drop(columns=[ 'x5', 'x31',  'x81' ,'x82'])), columns=test_val.drop(columns=[ 'x5', 'x31', 'x81', 'x82']).columns)
+  std_scaler = StandardScaler()
+  test_imputed_std = pd.DataFrame(std_scaler.fit_transform(test_imputed), columns=test_imputed.columns)
+
+  # 3 create dummies
+
+  dumb5 = pd.get_dummies(test_val['x5'], drop_first=True, prefix='x5', prefix_sep='_', dummy_na=True)
+  test_imputed_std = pd.concat([test_imputed_std, dumb5], axis=1, sort=False)
+
+  dumb31 = pd.get_dummies(test_val['x31'], drop_first=True, prefix='x31', prefix_sep='_', dummy_na=True)
+  test_imputed_std = pd.concat([test_imputed_std, dumb31], axis=1, sort=False)
+
+  dumb81 = pd.get_dummies(test_val['x81'], drop_first=True, prefix='x81', prefix_sep='_', dummy_na=True)
+  test_imputed_std = pd.concat([test_imputed_std, dumb81], axis=1, sort=False)
+
+  dumb82 = pd.get_dummies(test_val['x82'], drop_first=True, prefix='x82', prefix_sep='_', dummy_na=True)
+  test_imputed_std = pd.concat([test_imputed_std, dumb82], axis=1, sort=False)
+  # train_imputed_std = pd.concat([train_imputed_std, train['y']], axis=1, sort=False)
+
+  del dumb5, dumb31, dumb81, dumb82
+
+ 
+
+
+  #Test
+  Outcomes_test_final = pd.DataFrame(final_model.predict(test_imputed_std[variables])).rename(columns={0:'phat'})
+  # Outcomes_test_final['business_outcome'] = test_imputed_std['y']
+  # print('The C-Statistics is ',roc_auc_score(Outcomes_test_final['business_outcome'], Outcomes_test_final['phat']))
+  Outcomes_test_final['business_outcome'] = Outcomes_test_final['phat'].round().astype(int)
+
+  Outcomes_test_final['prob_bin'] = pd.qcut(Outcomes_test_final['phat'], q=20)
+  Outcomes_test_final.groupby(['prob_bin'])['business_outcome'].sum()
+
+  # Define the threshold for classifying as an event (75th percentile)
+  threshold = Outcomes_test_final['phat'].quantile(0.75)
+  # Classify observations in the top 5 bins as an event
+  Outcomes_test_final['business_outcome'] = (Outcomes_test_final['phat'] > threshold).astype(int)
+  # Assign the predicted probability to the variable 'phat'
+  
+
+  
+  return Outcomes_test_final[['business_outcome', 'phat']],variables
+
+
